@@ -1,0 +1,3 @@
+[submodule "deps/altv-capi"]
+	path = deps/altv-capi
+	url = https://github.com/7Hazard/altv-capi
