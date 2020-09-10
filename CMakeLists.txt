@@ -16,6 +16,11 @@ link_directories(altv-wasm-static PUBLIC
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /Zi")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 
+add_definitions(
+        -DWASM_API_EXTERN=
+        -DWASI_API_EXTERN=
+        )
+
 # ----------------------------
 #           Static
 # ----------------------------
