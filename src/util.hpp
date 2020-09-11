@@ -79,6 +79,11 @@ namespace util
         return std::string(sw.data);
     }
 
+    inline std::string from_wasm_name_t(wasm_name_t wn)
+    {
+        return std::string(wn.data);
+    }
+
     inline void logwe(const std::string& message, wasmtime_error_t *error, wasm_trap_t *trap)
     {
         loge(message + ":");
@@ -92,14 +97,33 @@ namespace util
             wasm_trap_delete(trap);
         }
 
-        wasm_byte_vec_delete(&error_message);
-
-        alt_StringView sw {(char*)error_message.data, error_message.size};
+        alt_StringView sw {(char*)error_message.data, error_message.size + 1};
         alt_ICore_LogError(core(), &sw);
     }
 
     inline std::string boolean_to_string(bool x)
     {
         return x ? "true" : "false";
+    }
+
+    inline int find_export_index_by_name(wasm_module_t *module, std::string func)
+    {
+        wasm_exporttype_vec_t module_exports;
+        wasm_module_exports(module, &module_exports);
+        int index = -1;
+
+        for (int i = 0; i < module_exports.size; i++) {
+            const wasm_name_t *name = wasm_exporttype_name(module_exports.data[i]);
+
+            if (name->size != func.length()) continue;
+            if (strncmp((char*)func.data(), name->data, func.length()) != 0) continue;
+
+            index = i;
+            break;
+        }
+
+        wasm_exporttype_vec_delete(&module_exports);
+
+        return index;
     }
 }

@@ -1,5 +1,11 @@
 #include "main.hpp"
 
+static wasm_trap_t *hello_callback(const wasm_val_t args[], wasm_val_t results[])
+{
+    util::logi("[WASM] hello_callback called");
+    return nullptr;
+}
+
 CAPI_EXPORT alt_IResource_Impl *create_resource(alt_IScriptRuntime *runtime, alt_IResource *resource)
 {
     alt_StringView name;
@@ -30,7 +36,7 @@ CAPI_EXPORT alt_IResource_Impl *create_resource(alt_IScriptRuntime *runtime, alt
     wasm_byte_vec_t wasm;
     wasm_byte_vec_new_uninitialized(&wasm, size);
 
-    unsigned long long int readsize = alt_IPackage_ReadFile(pkg, file, &wasm, size);
+    unsigned long long int readsize = alt_IPackage_ReadFile(pkg, file, wasm.data, size);
     alt_IPackage_CloseFile(pkg, file);
 
     if (readsize != size) {
@@ -38,63 +44,58 @@ CAPI_EXPORT alt_IResource_Impl *create_resource(alt_IScriptRuntime *runtime, alt
         return nullptr;
     }
 
-    wasmtime_error_t *error = NULL;
+    wasmtime_error_t *error = nullptr;
     wasm_engine_t *engine = wasm_engine_new();
     wasm_store_t *store = wasm_store_new(engine);
-    wasm_module_t *module = NULL;
+    wasm_module_t *module = nullptr;
 
-    if (engine == NULL) {
+    if (engine == nullptr) {
         util::loge("[WASM] Failed to instantiate the wasm engine");
         return nullptr;
     }
 
-    util::logi("[WASM] Creating a wasmtime module");
     error = wasmtime_module_new(engine, &wasm, &module);
-    util::logi("[WASM] Creating a wasmtime module [2]");
-    wasm_byte_vec_delete(&wasm);
-    util::logw("[WASM] [1] is error a nullptr: " + util::boolean_to_string(error != NULL));
 
-    if (error != NULL) {
-        util::logwe("[WASM] Failed to compile module", error, NULL);
+    if (error != nullptr) {
+        util::logwe("[WASM] Failed to compile module", error, nullptr);
         return nullptr;
     }
 
-    wasm_trap_t *trap = NULL;
-    wasm_instance_t *instance = NULL;
-    wasm_extern_t *imports[] = { NULL };
+    wasm_functype_t *hello_ty = wasm_functype_new_0_0();
+    wasm_func_t *hello = wasm_func_new(store, hello_ty, hello_callback);
 
-    util::logi("[WASM] Creating a wasmtime instance");
-    error = wasmtime_instance_new(store, module, imports, 0, &instance, &trap);
+    wasm_trap_t *trap = nullptr;
+    wasm_instance_t *instance = nullptr;
+    wasm_extern_t *imports[] = { wasm_func_as_extern(hello) };
 
-    util::logw("[WASM] [2] is instance a nullptr: " + util::boolean_to_string(instance == NULL));
-    if (instance == NULL) {
-        util::loge("[WASM] Failed to instantiate module [Instance is null]");
-        return nullptr;
-    }
+    error = wasmtime_instance_new(store, module, imports, 1, &instance, &trap);
 
-    util::logw("[WASM] [3] is error a nullptr: " + util::boolean_to_string(error != NULL));
-    if (error != NULL) {
+    if (error != nullptr) {
         util::logwe("[WASM] Failed to instantiate module", error, trap);
         return nullptr;
     }
 
-    std::unique_ptr<WasmResource> wasmres;
-    wasmres->name = util::from_stringview(main);
-    wasmres->instance = instance;
+    if (instance == nullptr) {
+        util::loge("[WASM] Failed to instantiate module [Instance is null]");
+        return nullptr;
+    }
 
-    util::logi("[WASM] Creating a resource instance...");
+    util::logi("[WASM] Creating a resource instance for " + util::from_stringview(name) + "...");
 
     alt_IResource_Impl *resource_impl = alt_CAPIResource_Impl_Create(
         resource,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr
+        resource::start,
+        resource::stop,
+        resource::event,
+        resource::resource_tick,
+        resource::create_object,
+        resource::destroy_object
     );
 
-    alt_CAPIResource_Impl_SetExtra(resource_impl, wasmres.release());
+    WasmResource *wasmres = new WasmResource(main.data, instance, module);
+    alt_CAPIResource_Impl_SetExtra(resource_impl, wasmres);
+
+    util::logi("[WASM] Created a resource instance");
 
     return resource_impl;
 }
