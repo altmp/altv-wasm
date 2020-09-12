@@ -3,7 +3,8 @@
 #include <filesystem>
 #include <time.h>
 #include <string>
-#include "altv-capi-client.h"
+#include <SDK.h>
+#include <altv-capi-client.h>
 #include "wasmtime.h"
 
 namespace util
@@ -23,55 +24,65 @@ namespace util
         return str;
     }
 
-    alt_ICore *core()
-    {
-        return alt_ICore_Instance();
-    }
-
     template<std::size_t N>
     inline void logi(const char (&str)[N])
     {
         alt_StringView sw {(char*)str, N+1};
-        alt_ICore_LogInfo(core(), &sw);
+        alt_ICore_LogInfo(alt_ICore_Instance(), &sw);
     }
 
     inline void logi(const std::string& str)
     {
         alt_StringView sw {(char*)str.data(), str.length()+1};
-        alt_ICore_LogInfo(core(), &sw);
+        alt_ICore_LogInfo(alt_ICore_Instance(), &sw);
+    }
+
+    inline void logi(alt::StringView str)
+    {
+        alt::ICore::Instance().LogInfo(str);
     }
 
     template<std::size_t N>
     inline void loge(const char (&str)[N])
     {
         alt_StringView sw {(char*)str, N+1};
-        alt_ICore_LogError(core(), &sw);
+        alt_ICore_LogError(alt_ICore_Instance(), &sw);
     }
 
     inline void loge(const std::string& str)
     {
         alt_StringView sw {(char*)str.data(), str.length() + 1};
-        alt_ICore_LogError(core(), &sw);
+        alt_ICore_LogError(alt_ICore_Instance(), &sw);
+    }
+
+    inline void loge(alt::StringView str)
+    {
+        alt::ICore::Instance().LogError(str);
     }
 
     template<std::size_t N>
     inline void logw(const char (&str)[N])
     {
         alt_StringView sw {(char*)str, N+1};
-        alt_ICore_LogWarning(core(), &sw);
+        alt_ICore_LogWarning(alt_ICore_Instance(), &sw);
     }
 
     inline void logw(const std::string& str)
     {
         alt_StringView sw {(char*)str.data(), str.length() + 1};
-        alt_ICore_LogWarning(core(), &sw);
+        alt_ICore_LogWarning(alt_ICore_Instance(), &sw);
+    }
+
+    inline void logw(alt::StringView str)
+    {
+        alt::ICore::Instance().LogWarning(str);
     }
 
     template<std::size_t N>
     inline bool FileExists(const char (&str)[N])
     {
         alt_StringView sw{(char*)str, N+1};
-        return alt_ICore_FileExists(core(), &sw);
+        return alt_ICore_FileExists(alt_ICore_Instance(), &sw);
     }
 
     inline std::string from_stringview(alt_StringView sw)
@@ -98,7 +109,7 @@ namespace util
         }
 
         alt_StringView sw {(char*)error_message.data, error_message.size + 1};
-        alt_ICore_LogError(core(), &sw);
+        alt_ICore_LogError(alt_ICore_Instance(), &sw);
     }
 
     inline std::string boolean_to_string(bool x)

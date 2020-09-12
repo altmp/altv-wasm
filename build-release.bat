@@ -8,7 +8,7 @@ CD .\capi\
 call .\gen-client.bat
 
 cmake -B BUILD --target altv-capi-client-static .
-cmake --build BUILD --target altv-capi-client-static
+cmake --build BUILD --target altv-capi-client-static --config Release
 
 CD ..\..\..\
 cmake -B BUILD

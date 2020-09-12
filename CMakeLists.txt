@@ -3,30 +3,36 @@ cmake_minimum_required(VERSION 3.10)
 project(altv-wasm)
 
 set(ALTV_WASM_DEPS ${CMAKE_SOURCE_DIR}/deps)
+set(ALTV_WASM_SOURCES
+        src/main.cpp
+        src/WasmRuntime.cpp
+        src/WasmResource.cpp
+)
+
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /EHsc /MT /Zi /bigobj")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /EHsc /MTd /bigobj")
+set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG:FULL /OPT:REF /OPT:ICF")
 
 include_directories(
         ${ALTV_WASM_DEPS}/wasmtime/include
         ${ALTV_WASM_DEPS}/altv-capi/capi/BUILD/altv-capi-client-static/include
-)
-link_directories(altv-wasm-static PUBLIC
+        ${ALTV_WASM_DEPS}/altv-capi/cpp-sdk
+        )
+link_directories(
         ${ALTV_WASM_DEPS}/wasmtime/lib/${CMAKE_BUILD_TYPE}
         ${ALTV_WASM_DEPS}/altv-capi/capi/BUILD/altv-capi-client-static/lib/${CMAKE_BUILD_TYPE}
         )
-
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /Zi /bigobj")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /bigobj")
-set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG:FULL /OPT:REF /OPT:ICF")
-
 add_definitions(
         -DWASM_API_EXTERN=
         -DWASI_API_EXTERN=
+        -D_CRT_SECURE_NO_WARNINGS
         )
 
 # ----------------------------
 #           Static
 # ----------------------------
 add_library(altv-wasm-static STATIC
-        src/main.cpp
+        ${ALTV_WASM_SOURCES}
         )
 
 target_link_libraries(altv-wasm-static PUBLIC
@@ -39,7 +45,6 @@ target_link_libraries(altv-wasm-static PUBLIC
         ole32.lib
 
         altv-capi-client-static.lib
-        # altv-capi-client-static$<$<CONFIG:Debug>:-mtd>
         wasmtime.lib
         )
 
@@ -54,12 +59,7 @@ set_target_properties(altv-wasm-static PROPERTIES
 #           Shared
 # ----------------------------
 add_library(altv-wasm-shared SHARED
-        src/main.cpp
-        )
-
-target_link_directories(altv-wasm-shared PUBLIC
-        ${ALTV_WASM_DEPS}/wasmtime/lib/${CMAKE_BUILD_TYPE}
-        ${ALTV_WASM_DEPS}/altv-capi/capi/BUILD/altv-capi-client-static/lib/${CMAKE_BUILD_TYPE}
+        ${ALTV_WASM_SOURCES}
         )
 
 target_link_libraries(altv-wasm-shared PUBLIC
@@ -72,7 +72,6 @@ target_link_libraries(altv-wasm-shared PUBLIC
         ole32.lib
 
         altv-capi-client-static.lib
-        # altv-capi-client-static$<$<CONFIG:Debug>:-mtd>
         wasmtime.lib
         )
 
