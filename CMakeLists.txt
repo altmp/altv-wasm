@@ -20,7 +20,7 @@ include_directories(
         )
 link_directories(
         ${ALTV_WASM_DEPS}/wasmtime/lib/${CMAKE_BUILD_TYPE}
-        ${ALTV_WASM_DEPS}/altv-capi/capi/BUILD/altv-capi-client-static/lib/${CMAKE_BUILD_TYPE}
+        ${ALTV_WASM_DEPS}/altv-capi/capi/BUILD/altv-capi-client-static$<IF:$<CONFIG:Debug>,-mtd,>/lib/${CMAKE_BUILD_TYPE}
         )
 add_definitions(
         -DWASM_API_EXTERN=
@@ -44,7 +44,7 @@ target_link_libraries(altv-wasm-static PUBLIC
         shell32.lib
         ole32.lib
 
-        altv-capi-client-static.lib
+        altv-capi-client-static$<IF:$<CONFIG:Debug>,-mtd,>.lib
         wasmtime.lib
         )
 
@@ -71,8 +71,13 @@ target_link_libraries(altv-wasm-shared PUBLIC
         shell32.lib
         ole32.lib
 
-        altv-capi-client-static.lib
+        altv-capi-client-static$<IF:$<CONFIG:Debug>,-mtd,>.lib
         wasmtime.lib
+
+        libvcruntime.lib # __imp_calloc
+        # libucrt.lib
+        # libcmt.lib
+        # libcpmt.lib
         )
 
 set_target_properties(altv-wasm-shared PROPERTIES

@@ -12,7 +12,6 @@ public:
         return instance;
     }
 
-    bool ok = Init();
     wasm_engine_t *engine = nullptr;
     wasm_store_t *store = nullptr;
 

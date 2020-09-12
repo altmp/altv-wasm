@@ -8,9 +8,9 @@ if not exist cpp-sdk call .\tools\get-cppsdk.bat
 CD .\capi\
 call .\gen-client.bat
 
-cmake -B BUILD -DCMAKE_BUILD_TYPE=RelWithDebInfo --target altv-capi-client-static .
-cmake --build BUILD --config RelWithDebInfo --target altv-capi-client-static
+cmake -B BUILD --target altv-capi-client-static-mtd .
+cmake --build BUILD --config Debug --target altv-capi-client-static-mtd
 
 CD ..\..\..\
-cmake -B BUILD-DEBUG
-cmake --build BUILD-DEBUG
+cmake -B BUILD
+cmake --build BUILD --config Debug

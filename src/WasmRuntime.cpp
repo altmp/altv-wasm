@@ -18,9 +18,9 @@ bool WasmRuntime::Init()
         return false;
     }
     store = wasm_store_new(engine);
-    if (engine == nullptr)
+    if (store == nullptr)
     {
-        util::loge("[WASM] Failed to instantiate the wasm engine");
+        util::loge("[WASM] Failed to instantiate the wasm store");
         return false;
     }
 
@@ -61,15 +61,13 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
 
     if (readsize != size)
     {
-        util::loge("[WASM] Could not read " + main + " appropriately");
+        util::loge("[WASM] Could not read " + main + " properly");
         return nullptr;
     }
 
     wasmtime_error_t *error = nullptr;
     wasm_module_t *module = nullptr;
-
     error = wasmtime_module_new(engine, &wasm, &module);
-
     if (error != nullptr)
     {
         util::logwe("[WASM] Failed to compile module", error, nullptr);
