@@ -3,7 +3,7 @@
 #include "wasmtime.h"
 #include "util.hpp"
 
-CAPI_EXPORT alt::IScriptRuntime* CreateWasmRuntime(alt::ICore* core)
+CAPI_EXTERN alt::IScriptRuntime* CreateWasmRuntime(alt::ICore* core)
 {
     alt::ICore::SetInstance(core);
 
@@ -14,10 +14,4 @@ CAPI_EXPORT alt::IScriptRuntime* CreateWasmRuntime(alt::ICore* core)
         throw std::runtime_error("WasmRuntime was not successfully initialized");
         
     return runtime;
-}
-
-// hack for debug build
-extern "C" void __imp_clock()
-{
-
 }
