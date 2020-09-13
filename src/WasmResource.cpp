@@ -1,47 +1,33 @@
 #include "WasmResource.hpp"
 
-WasmResource::WasmResource(alt::IResource* resource, wasm_instance_t *instance, wasm_module_t *module)
-    : resource(resource), instance(instance), module(module)
+WasmResource::WasmResource(alt::IResource* resource)
+    : resource(resource)
 {
 }
 
 bool WasmResource::Start()
 {
-    util::logi("[WASM] Starting resource");
+    Utilities::LogInfo("[WASM] Starting resource");
+    bool result = false;
 
-    std::string func_name = "run";
-    int run_index = util::find_export_index_by_name(this->module, func_name);
-
-    wasm_extern_vec_t exports;
-    wasm_instance_exports(this->instance, &exports);
-    if (exports.size == 0)
+    try
     {
-        util::loge("Error accessing exports");
-        return false;
+        this->CallFunction<void>("_start");
+//        this->CallFunction<void>("__wasm_call_ctors");
+
+        result = this->CallFunction<i32>("altMain", {{ .kind = WASM_I32, .of = { .i32 = this->GetPointerID(&alt::ICore::Instance()) }}});
+    }
+    catch (std::runtime_error &err)
+    {
+        Utilities::LogError(std::string(err.what()));
     }
 
-    wasm_func_t *run_func = wasm_extern_as_func(exports.data[run_index]);
-    if (run_func == nullptr)
-    {
-        util::loge("Error accessing export: " + func_name);
-        return false;
-    }
-
-    wasmtime_error_t *error = nullptr;
-    wasm_trap_t *trap = nullptr;
-    error = wasmtime_func_call(run_func, nullptr, 0, nullptr, 0, &trap);
-    if (error != nullptr || trap != nullptr)
-    {
-        util::logwe("Failed to call function: " + func_name, error, trap);
-        return false;
-    }
-
-    return true;
+    return result;
 }
 
 bool WasmResource::Stop()
 {
-    util::logi("[WASM] Stopping resource");
+    Utilities::LogInfo("[WASM] Stopping resource");
     return true;
 }
 
@@ -60,4 +46,18 @@ void WasmResource::OnCreateBaseObject(alt::Ref<alt::IBaseObject> object)
 
 void WasmResource::OnRemoveBaseObject(alt::Ref<alt::IBaseObject> object)
 {
+}
+
+wasm_func_t* WasmResource::FindExportedFunction(std::string func)
+{
+    auto iterator = this->exportsTable.find(func);
+
+    if (iterator == this->exportsTable.end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return iterator->second;
+    }
 }
