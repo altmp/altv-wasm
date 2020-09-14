@@ -7,10 +7,18 @@
 #include <altv-capi-client.h>
 #include "wasmtime.h"
 
-using i32 = int32_t;
-using i64 = int64_t;
-using f32 = float32_t;
-using f64 = float64_t;
+using i8  = int8_t;    // i32 | signed char
+using i16 = int16_t;   // i32 | short
+using i32 = int32_t;   // i32 | int
+using i64 = int64_t;   // i64 | long long
+
+using u8  = uint8_t;   // i32 | unsigned char
+using u16 = uint16_t;  // i32 | unsigned short
+using u32 = uint32_t;  // i32 | unsigned int
+using u64 = uint64_t;  // i64 | unsigned long long
+
+using f32 = float32_t; // f32 | float
+using f64 = float64_t; // f64 | double
 
 namespace Utilities
 {

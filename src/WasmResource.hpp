@@ -14,7 +14,11 @@ public:
 
     std::unordered_map<int32_t, void*> pointerTable32_64;
     std::unordered_map<void*, int32_t> pointerTable64_32;
-    std::unordered_map<std::string, wasm_func_t*> exportsTable;
+
+    std::unordered_map<std::string, wasm_func_t*> funcExportsMap;
+    std::unordered_map<std::string, wasm_global_t*> globalExportsMap;
+    std::unordered_map<std::string, wasm_memory_t *> memoryExportsMap;
+    std::unordered_map<std::string, wasm_table_t*> tableExportsMap;
 
     bool Start() override;
     bool Stop() override;
@@ -73,7 +77,10 @@ public:
         }
     }
 
-    wasm_func_t* FindExportedFunction(std::string func);
+    wasm_func_t* FindExportedFunction(const std::string& name);
+    wasm_global_t* FindExportedGlobal(const std::string& name);
+    wasm_memory_t* FindExportedMemory(const std::string& name);
+    wasm_table_t* FindExportedTable(const std::string& name);
 
     void* GetPointer(int32_t id)
     {

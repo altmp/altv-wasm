@@ -80,11 +80,17 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
 
     wasm_functype_t *hello_ty = wasm_functype_new_0_0();
     wasm_func_t *hello = wasm_func_new_with_env(store, hello_ty, WasmExports::hello_callback, wasmResource, nullptr);
+    wasm_functype_delete(hello_ty);
 
-    wasm_extern_t *imports[] = {wasm_func_as_extern(hello)};
+    wasm_functype_t *log_ty = wasm_functype_new_2_0(wasm_valtype_new_i32(), wasm_valtype_new_i32());
+    wasm_func_t *log = wasm_func_new_with_env(store, log_ty, WasmExports::ICore_LogInfo, wasmResource, nullptr);
+    wasm_functype_delete(log_ty);
+
+    const wasm_extern_t *imports[] = { wasm_func_as_extern(hello), wasm_func_as_extern(log) };
     wasm_instance_t *instance = nullptr;
     wasm_trap_t *trap = nullptr;
-    error = wasmtime_instance_new(store, module, imports, 1, &instance, &trap);
+
+    error = wasmtime_instance_new(store, module, imports, 2, &instance, &trap);
     if (error != nullptr)
     {
         Utilities::LogWasmError("[WASM] Failed to instantiate module", error, trap);
@@ -98,6 +104,9 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
         return nullptr;
     }
 
+    wasm_func_delete(hello);
+    wasm_func_delete(log);
+
     Utilities::LogInfo("[WASM] Creating a resource instance for " + name + "...");
 
     wasm_exporttype_vec_t module_exports;
@@ -105,7 +114,8 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
     wasm_module_exports(module, &module_exports);
     wasm_instance_exports(instance, &instance_exports);
 
-    if (module_exports.size != instance_exports.size) {
+    if (module_exports.size != instance_exports.size)
+    {
         Utilities::LogError("[WASM] Module and instance exports don't match");
         delete wasmResource;
         return nullptr;
@@ -114,8 +124,28 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
     for (int i = 0; i < module_exports.size; i++)
     {
         const wasm_name_t *name = wasm_exporttype_name(module_exports.data[i]);
+        const wasm_externtype_t *type = wasm_exporttype_type(module_exports.data[i]);
+
         std::string funcName { name->data, name->size };
-        wasmResource->exportsTable.emplace(funcName, wasm_extern_as_func(instance_exports.data[i]));
+
+        if (wasm_externtype_kind(type) == WASM_EXTERN_FUNC)
+        {
+            wasmResource->funcExportsMap.emplace(funcName, wasm_extern_as_func(instance_exports.data[i]));
+        }
+        else if (wasm_externtype_kind(type) == WASM_EXTERN_GLOBAL)
+        {
+            wasmResource->globalExportsMap.emplace(funcName, wasm_extern_as_global(instance_exports.data[i]));
+        }
+        else if (wasm_externtype_kind(type) == WASM_EXTERN_MEMORY)
+        {
+            wasmResource->memoryExportsMap.emplace(funcName, wasm_extern_as_memory(instance_exports.data[i]));
+        }
+        else if (wasm_externtype_kind(type) == WASM_EXTERN_TABLE)
+        {
+            wasmResource->tableExportsMap.emplace(funcName, wasm_extern_as_table(instance_exports.data[i]));
+        }
+
+        Utilities::LogInfo("Exported function: " + funcName);
     }
 
     wasmResource->instance = instance;

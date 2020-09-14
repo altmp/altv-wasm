@@ -1,6 +1,6 @@
 #include "WasmResource.hpp"
 
-WasmResource::WasmResource(alt::IResource* resource)
+WasmResource::WasmResource(alt::IResource *resource)
     : resource(resource)
 {
 }
@@ -48,11 +48,53 @@ void WasmResource::OnRemoveBaseObject(alt::Ref<alt::IBaseObject> object)
 {
 }
 
-wasm_func_t* WasmResource::FindExportedFunction(std::string func)
+wasm_func_t* WasmResource::FindExportedFunction(const std::string& name)
 {
-    auto iterator = this->exportsTable.find(func);
+    auto iterator = this->funcExportsMap.find(name);
 
-    if (iterator == this->exportsTable.end())
+    if (iterator == this->funcExportsMap.end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return iterator->second;
+    }
+}
+
+wasm_global_t* WasmResource::FindExportedGlobal(const std::string& name)
+{
+    auto iterator = this->globalExportsMap.find(name);
+
+    if (iterator == this->globalExportsMap.end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return iterator->second;
+    }
+}
+
+wasm_memory_t* WasmResource::FindExportedMemory(const std::string& name)
+{
+    auto iterator = this->memoryExportsMap.find(name);
+
+    if (iterator == this->memoryExportsMap.end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return iterator->second;
+    }
+}
+
+wasm_table_t* WasmResource::FindExportedTable(const std::string& name)
+{
+    auto iterator = this->tableExportsMap.find(name);
+
+    if (iterator == this->tableExportsMap.end())
     {
         return nullptr;
     }
