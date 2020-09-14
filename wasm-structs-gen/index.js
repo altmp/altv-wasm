@@ -21,14 +21,14 @@ let ignoreStructs = ['alt_CWebView'];
 
 const tab = '    ';
 
-let headerString = '#pragma once\n\n#include <altv-capi-client.h>\n\nnamespace Wasm\n{\n';
+let headerString = '#pragma once\n\n#include <altv-capi-client.h>\n#include "WasmPtr.hpp"\n\nnamespace Wasm\n{\n';
 
 structLoop:
 for (const structName in altv_capi.structs) {
     const structData = altv_capi.structs[structName];
     const newStructName = structName;
 
-    let structString = `${tab}struct ${newStructName} {\n`;
+    let structString = `${tab}struct ${newStructName} \n${tab}{\n`;
 
     for (const [index, field] of structData.fields.entries()) {
         if (altv_capi.enums[field.type.name]) {
@@ -65,7 +65,7 @@ while(queuedStructs.length !== ignoreStructs.length) {
         const structData = altv_capi.structs[structName];
         const newStructName = structName;
 
-        let structString = `${tab}typedef struct ${newStructName} {\n`;
+        let structString = `${tab}struct ${newStructName} \n${tab}{\n`;
 
         for (const [index, field] of structData.fields.entries()) {
             if (altv_capi.enums[field.type.name]) {
@@ -74,6 +74,12 @@ while(queuedStructs.length !== ignoreStructs.length) {
             }
 
             const fieldType = field.type.name;
+
+            if (fieldType.includes('alt_') || fieldType.includes('*')) {
+                const type = `WasmPtr<${fieldType.replace('*', '')}>`;
+                structString += `${tab}${tab}${type} ${field.name};\n`;
+                continue;
+            }
 
             if (fieldType.startsWith('alt_') && !definedStructs.includes(fieldType.replace('*', ''))) {
                 continue structLoop;
