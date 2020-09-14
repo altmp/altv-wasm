@@ -2,6 +2,7 @@
 
 #include <wasmtime.h>
 #include "Utilities.hpp"
+#include "WasmStructs.hpp"
 
 namespace WasmExports
 {
@@ -23,12 +24,10 @@ namespace WasmExports
 
         wasm_memory_t* memory = wasmResource->FindExportedMemory("memory");
 
-        char* data = wasm_memory_data(memory);
-        auto ptr = (WASM_alt_StringView*)(data + args[1].of.i32);
+        auto wasmStringView = WasmPtr<Wasm::alt_StringView>(args[1]).get(memory);
+        char* string = wasmStringView->data.get(memory);
 
-        char* string = (char *)(data + ptr->data);
-
-        alt_StringView stringView { string, ptr->size };
+        alt_StringView stringView { string, wasmStringView->size };
         alt_ICore_LogInfo(core, &stringView);
 
         return nullptr;
