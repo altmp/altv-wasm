@@ -1,8 +1,8 @@
+#include <wasmtime.h>
 #include "WasmRuntime.hpp"
 #include "WasmResource.hpp"
 #include "WasmExports.hpp"
 #include "Utilities.hpp"
-#include "wasmtime.h"
 
 WasmRuntime::WasmRuntime()
 {
@@ -11,18 +11,30 @@ WasmRuntime::WasmRuntime()
 
 bool WasmRuntime::Init()
 {
-    engine = wasm_engine_new();
-    if (engine == nullptr)
+    this->engine = wasm_engine_new();
+    if (this->engine == nullptr)
     {
         Utilities::LogError("[WASM] Failed to instantiate the wasm engine");
         return false;
     }
-    store = wasm_store_new(engine);
-    if (store == nullptr)
+
+    this->store = wasm_store_new(engine);
+    if (this->store == nullptr)
     {
         Utilities::LogError("[WASM] Failed to instantiate the wasm store");
         return false;
     }
+
+    alt_ICore_SubscribeEvent(alt_ICore_Instance(), ALT_CEVENT_TYPE_ALL, [](alt_CEvent* event, void* userData) {
+        auto resources = WasmRuntime::Instance()->resources;
+
+        for (auto resource: resources)
+        {
+            resource->CallFunction<bool>("altEvent", {{ .kind = WASM_I32, .of = { .i32 = resource->GetPointerID(event) }}});
+        }
+
+        return true;
+    }, nullptr);
 
     Utilities::LogInfo("[WASM] Initialized runtime");
     return true;
@@ -35,7 +47,7 @@ bool WasmRuntime::RequiresMain() const
 
 alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
 {
-    Utilities::LogColored("~r~■~o~■~y~■~g~■~b~■~p~■~c~■");
+//    Utilities::LogColored("~r~■~o~■~y~■~g~■~b~■~p~■~c~■");
 
     auto name = resource->GetName();
     auto main = resource->GetMain();
@@ -67,8 +79,8 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
         return nullptr;
     }
 
-    wasmtime_error_t *error = nullptr;
-    wasm_module_t *module = nullptr;
+    wasmtime_error_t* error = nullptr;
+    wasm_module_t* module = nullptr;
     error = wasmtime_module_new(engine, &wasm, &module);
     if (error != nullptr)
     {
@@ -78,19 +90,16 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
 
     auto wasmResource = new WasmResource(resource);
 
-    wasm_functype_t *hello_ty = wasm_functype_new_0_0();
-    wasm_func_t *hello = wasm_func_new_with_env(store, hello_ty, WasmExports::hello_callback, wasmResource, nullptr);
-    wasm_functype_delete(hello_ty);
+    const wasm_extern_t* imports[] = {
+        wasm_func_as_extern(this->CreateExportFunction("alt_ICore_Instance", WasmExports::ICore_Instance, wasmResource, {}, {})),
+        wasm_func_as_extern(this->CreateExportFunction("alt_ICore_LogInfo", WasmExports::ICore_LogInfo, wasmResource, {}, {})) ,
+        wasm_func_as_extern(this->CreateExportFunction("alt_CEvent_GetType", WasmExports::CEvent_GetType, wasmResource, {}, {}))
+    };
 
-    wasm_functype_t *log_ty = wasm_functype_new_2_0(wasm_valtype_new_i32(), wasm_valtype_new_i32());
-    wasm_func_t *log = wasm_func_new_with_env(store, log_ty, WasmExports::ICore_LogInfo, wasmResource, nullptr);
-    wasm_functype_delete(log_ty);
+    wasm_instance_t* instance = nullptr;
+    wasm_trap_t* trap = nullptr;
 
-    const wasm_extern_t *imports[] = { wasm_func_as_extern(hello), wasm_func_as_extern(log) };
-    wasm_instance_t *instance = nullptr;
-    wasm_trap_t *trap = nullptr;
-
-    error = wasmtime_instance_new(store, module, imports, 2, &instance, &trap);
+    error = wasmtime_instance_new(store, module, imports, sizeof(imports), &instance, &trap);
     if (error != nullptr)
     {
         Utilities::LogWasmError("[WASM] Failed to instantiate module", error, trap);
@@ -103,9 +112,6 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
         delete wasmResource;
         return nullptr;
     }
-
-    wasm_func_delete(hello);
-    wasm_func_delete(log);
 
     Utilities::LogInfo("[WASM] Creating a resource instance for " + name + "...");
 
@@ -123,8 +129,8 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
 
     for (int i = 0; i < module_exports.size; i++)
     {
-        const wasm_name_t *name = wasm_exporttype_name(module_exports.data[i]);
-        const wasm_externtype_t *type = wasm_exporttype_type(module_exports.data[i]);
+        const wasm_name_t* name = wasm_exporttype_name(module_exports.data[i]);
+        const wasm_externtype_t* type = wasm_exporttype_type(module_exports.data[i]);
 
         std::string funcName { name->data, name->size };
 
@@ -151,10 +157,12 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
     wasmResource->instance = instance;
     wasmResource->module = module;
 
+    this->resources.insert(wasmResource);
+
     return wasmResource;
 }
 
-void WasmRuntime::DestroyImpl(alt::IResource::Impl *impl)
+void WasmRuntime::DestroyImpl(alt::IResource::Impl* impl)
 {
     Utilities::LogInfo("[WASM] Removed resource");
 }
@@ -165,5 +173,16 @@ void WasmRuntime::OnTick()
 
 void WasmRuntime::OnDispose()
 {
-    Utilities::LogError("[WASM] RUNTIME DISPOSE");
+    Utilities::LogError("[WASM] Runtime disposed");
+}
+
+wasm_func_t* WasmRuntime::CreateExportFunction(const std::string& name, wasm_func_callback_with_env_t func, void* env, wasm_valtype_vec_t* params, wasm_valtype_vec_t* results)
+{
+    wasm_functype_t* type = wasm_functype_new(params, results);
+    wasm_func_t* function = wasm_func_new_with_env(this->store, type, func, env, nullptr);
+    wasm_functype_delete(type);
+
+    auto exportType = wasm_exporttype_new(Utilities::WasmNameFromString(name), wasm_extern_type(wasm_func_as_extern(function)));
+
+    return function;
 }

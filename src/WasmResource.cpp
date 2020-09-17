@@ -1,6 +1,6 @@
 #include "WasmResource.hpp"
 
-WasmResource::WasmResource(alt::IResource *resource)
+WasmResource::WasmResource(alt::IResource* resource)
     : resource(resource)
 {
 }
@@ -12,12 +12,13 @@ bool WasmResource::Start()
 
     try
     {
-        this->CallFunction<void>("_start");
+        // Starting functions for modules
 //        this->CallFunction<void>("__wasm_call_ctors");
+        this->CallFunction<void>("_start");
 
         result = this->CallFunction<i32>("altMain", {{ .kind = WASM_I32, .of = { .i32 = this->GetPointerID(&alt::ICore::Instance()) }}});
     }
-    catch (std::runtime_error &err)
+    catch (std::runtime_error& err)
     {
         Utilities::LogError(std::string(err.what()));
     }
@@ -31,8 +32,10 @@ bool WasmResource::Stop()
     return true;
 }
 
-bool WasmResource::OnEvent(const alt::CEvent *ev)
+bool WasmResource::OnEvent(const alt::CEvent* ev)
 {
+    this->CallFunction<void>("onEvent", {{ .kind = WASM_I32, .of = { .i32 = (i32)ev->GetType() }}});
+
     return true;
 }
 

@@ -6,18 +6,18 @@
 class WasmResource : public alt::IResource::Impl
 {
 public:
-    WasmResource(alt::IResource *resource);
+    WasmResource(alt::IResource* resource);
 
     alt::IResource* resource = nullptr;
-    wasm_instance_t *instance = nullptr;
-    wasm_module_t *module = nullptr;
+    wasm_instance_t* instance = nullptr;
+    wasm_module_t* module = nullptr;
 
     std::unordered_map<int32_t, void*> pointerTable32_64;
     std::unordered_map<void*, int32_t> pointerTable64_32;
 
     std::unordered_map<std::string, wasm_func_t*> funcExportsMap;
     std::unordered_map<std::string, wasm_global_t*> globalExportsMap;
-    std::unordered_map<std::string, wasm_memory_t *> memoryExportsMap;
+    std::unordered_map<std::string, wasm_memory_t*> memoryExportsMap;
     std::unordered_map<std::string, wasm_table_t*> tableExportsMap;
 
     bool Start() override;
@@ -32,10 +32,10 @@ public:
     template <typename K, typename T = K>
     T CallFunction(std::string funcName, std::vector<wasm_val_t> args = {})
     {
-        wasmtime_error_t *error = nullptr;
-        wasm_trap_t *trap = nullptr;
+        wasmtime_error_t* error = nullptr;
+        wasm_trap_t* trap = nullptr;
 
-        wasm_func_t *func = this->FindExportedFunction(funcName);
+        wasm_func_t* func = this->FindExportedFunction(funcName);
         if (func == nullptr)
         {
             throw std::runtime_error("Exported function not found: " + funcName);

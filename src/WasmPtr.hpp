@@ -12,7 +12,7 @@ public:
     WasmPtr(const wasm_val_t& val) : offset(val.of.i32) {}
     WasmPtr(i32 val) : offset(val) {}
 
-    T* get(wasm_memory_t* memory)
+    T* Get(wasm_memory_t* memory)
     {
         return (T*)(wasm_memory_data(memory) + offset);
     }

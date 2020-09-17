@@ -22,10 +22,18 @@ using f64 = float64_t; // f64 | double
 
 namespace Utilities
 {
+    inline wasm_name_t* WasmNameFromString(const std::string& str)
+    {
+        wasm_name_t* name = nullptr;
+        wasm_name_new_from_string(name, (char*)str.data());
+
+        return name;
+    }
+
     inline auto GetTimestamp()
     {
         time_t rawtime;
-        struct tm * timeinfo;
+        struct tm* timeinfo;
         char buffer[80];
 
         time (&rawtime);
@@ -116,7 +124,7 @@ namespace Utilities
         return alt_ICore_FileExists(alt_ICore_Instance(), &sw);
     }
 
-    inline void LogWasmError(const std::string& message, wasmtime_error_t *error, wasm_trap_t *trap)
+    inline void LogWasmError(const std::string& message, wasmtime_error_t* error, wasm_trap_t* trap)
     {
         LogError(message + ":");
         wasm_byte_vec_t error_message;
