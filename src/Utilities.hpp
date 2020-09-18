@@ -31,21 +31,6 @@ namespace Utilities
         return name;
     }
 
-    inline auto GetTimestamp()
-    {
-        time_t rawtime;
-        struct tm* timeinfo;
-        char buffer[80];
-
-        time (&rawtime);
-        timeinfo = localtime(&rawtime);
-
-        strftime(buffer, sizeof(buffer),"%d-%m-%Y-%H:%M:%S", timeinfo);
-        std::string str(buffer);
-
-        return str;
-    }
-
     template<std::size_t N>
     inline void LogInfo(const char (&str)[N])
     {
@@ -118,13 +103,6 @@ namespace Utilities
         alt::ICore::Instance().LogColored(stringView);
     }
 
-    template<std::size_t N>
-    inline bool FileExists(const char (&str)[N])
-    {
-        alt_StringView sw{(char*)str, N+1};
-        return alt_ICore_FileExists(alt_ICore_Instance(), &sw);
-    }
-
     inline void LogWasmError(const std::string& message, wasmtime_error_t* error, wasm_trap_t* trap)
     {
         LogError(message + ":");
@@ -138,12 +116,7 @@ namespace Utilities
             wasm_trap_delete(trap);
         }
 
-        alt_StringView sw {(char*)error_message.data, error_message.size + 1};
+        alt_StringView sw {(char*)error_message.data, error_message.size - 1};
         alt_ICore_LogError(alt_ICore_Instance(), &sw);
-    }
-
-    inline std::string boolean_to_string(bool x)
-    {
-        return x ? "true" : "false";
     }
 }

@@ -1,2 +1,4 @@
 .idea/
 BUILD/
+cmake-build-debug/
+cmake-build-release/

@@ -19,10 +19,17 @@ bool WasmRuntime::Init()
         return false;
     }
 
-    this->store = wasm_store_new(engine);
+    this->store = wasm_store_new(this->engine);
     if (this->store == nullptr)
     {
         Utilities::LogError("[WASM] Failed to instantiate the wasm store");
+        return false;
+    }
+
+    this->linker = wasmtime_linker_new(this->store);
+    if (this->linker == nullptr)
+    {
+        Utilities::LogError("[WASM] Failed to instantiate the wasmtime linker");
         return false;
     }
 
@@ -46,7 +53,7 @@ bool WasmRuntime::RequiresMain() const
     return true;
 }
 
-alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
+alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource* resource)
 {
 //    Utilities::LogColored("~r~■~o~■~y~■~g~■~b~■~p~■~c~■");
 
@@ -71,63 +78,69 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
     wasm_byte_vec_t wasm;
     wasm_byte_vec_new_uninitialized(&wasm, size);
 
-    auto readsize = pkg->ReadFile(file, wasm.data, size);
+    auto readSize = pkg->ReadFile(file, wasm.data, size);
     pkg->CloseFile(file);
 
-    if (readsize != size)
+    if (readSize != size)
     {
         Utilities::LogError("[WASM] Could not read " + main + " properly");
         return nullptr;
     }
 
     wasmtime_error_t* error = nullptr;
+    wasm_trap_t* trap = nullptr;
+    auto wasmResource = new WasmResource(resource);
+
+    std::string moduleNameS = "env";
+    wasm_name_t moduleName;
+    wasm_name_new_from_string(&moduleName, moduleNameS.c_str());
+
+    auto MakeImport = [&](const std::string& name, wasm_func_callback_with_env_t func, const std::initializer_list<wasm_valkind_enum>& params, const std::initializer_list<wasm_valkind_enum>& results) {
+        return WasmImport(this->store, moduleNameS, name, wasmResource, func, params, results);
+    };
+
+    std::vector<WasmImport> imports = {
+        MakeImport("alt_ICore_Instance", WasmExports::ICore_Instance, {}, { WASM_I32 }),
+        MakeImport("alt_ICore_LogInfo", WasmExports::ICore_LogInfo, { WASM_I32, WASM_I32 }, {}),
+        MakeImport("alt_CEvent_GetType", WasmExports::CEvent_GetType, { WASM_I32 }, { WASM_I32 }),
+    };
+
+    for (auto& import : imports)
+    {
+        wasm_name_t moduleName;
+        wasm_name_new_from_string(&moduleName, import.module.c_str());
+
+        wasm_name_t importName;
+        wasm_name_new_from_string(&importName, import.name.c_str());
+
+        error = wasmtime_linker_define(this->linker, &moduleName, &importName, wasm_func_as_extern(import.function));
+        if (error != nullptr)
+        {
+            Utilities::LogWasmError("[WASM] Failed to define import: " + import.module + "::" + import.name, error, nullptr);
+        }
+        else
+        {
+            Utilities::LogInfo("[WASM] Defined import: " + import.module + "::" + import.name);
+        }
+
+        wasm_name_delete(&moduleName);
+        wasm_name_delete(&importName);
+    }
+
     wasm_module_t* module = nullptr;
-    error = wasmtime_module_new(engine, &wasm, &module);
+    error = wasmtime_module_new(this->engine, &wasm, &module);
     if (error != nullptr)
     {
         Utilities::LogWasmError("[WASM] Failed to compile module", error, nullptr);
         return nullptr;
     }
 
-    auto wasmResource = new WasmResource(resource);
-
-    // TODO: set in WasmRuntime
-    auto linker = wasmtime_linker_new(store);
-
-    auto MakeImport = [&](const std::string& name, wasm_func_callback_with_env_t func, const std::initializer_list<wasm_valkind_enum>& params, const std::initializer_list<wasm_valkind_enum>& results) {
-        return WasmImport(store, "env", name, wasmResource, func, params, results);
-    };
-    std::vector<WasmImport> imports = {
-        {MakeImport("alt_ICore_Instance", WasmExports::ICore_Instance, {}, {WASM_I32})},
-        {MakeImport("alt_ICore_LogInfo", WasmExports::ICore_LogInfo, {WASM_I32, WASM_I32}, {})},
-        {MakeImport("alt_CEvent_GetType", WasmExports::CEvent_GetType, {WASM_I32}, {WASM_I32})},
-    };
-
-    // define imports
-    wasmtime_linker_allow_shadowing(linker, true);
-    for (auto& import : imports)
-    {
-        wasm_name_t wmodule;
-        wasm_name_new_from_string(&wmodule, import.module.c_str());
-        wasm_name_t wname;
-        wasm_name_new_from_string(&wname, import.name.c_str());
-        wasmtime_linker_define(linker, &wmodule, &wname, wasm_func_as_extern(import.function));
-        Utilities::LogInfo("WASM Defined "+import.module+"::"+import.name);
-    }
-    
-    // {
-    //     wasm_name_t wname;
-    //     wasm_name_new_from_string(&wname, name.CStr());
-    //     // instantiates module
-    //     wasmtime_linker_module(linker, &wname, module);
-    // }
-
     wasm_instance_t* instance = nullptr;
-    wasm_trap_t* trap = nullptr;
-    error = wasmtime_linker_instantiate(linker, module, &instance, &trap);
+    error = wasmtime_linker_module(this->linker, &moduleName, module);
+//    error = wasmtime_linker_instantiate(this->linker, module, &instance, &trap);
     if (error != nullptr)
     {
-        Utilities::LogWasmError("[WASM] Failed to instantiate module", error, trap);
+        Utilities::LogWasmError("[WASM] Failed to instantiate module", error, nullptr);
         delete wasmResource;
         return nullptr;
     }
@@ -137,58 +150,6 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
         delete wasmResource;
         return nullptr;
     }
-
-    // Give names to imports
-    // wasm_importtype_vec_t importtypes;
-    // wasm_module_imports(module, &importtypes);
-    // assert(importtypes.size == _imports.size());
-    // for (size_t i = 0; i < importtypes.size; i++)
-    // {
-    //     auto& import = _imports[i];
-    //     wasm_name_t module;
-    //     wasm_name_new_from_string(&module, import.env.c_str());
-    //     wasm_name_t name;
-    //     wasm_name_new_from_string(&name, import.name.c_str());
-
-    //     // wasm_functype_as_externtype_const
-
-    //     wasm_
-    // }
-
-    // const wasm_extern_t* imports[] = {
-    //     wasm_func_as_extern(this->CreateImportFunction("alt_ICore_Instance", WasmExports::ICore_Instance, wasmResource, {}, {WASM_I32})),
-    //     wasm_func_as_extern(this->CreateImportFunction("alt_ICore_LogInfo", WasmExports::ICore_LogInfo, wasmResource, {WASM_I32, WASM_I32}, {})),
-    //     wasm_func_as_extern(this->CreateImportFunction("alt_CEvent_GetType", WasmExports::CEvent_GetType, wasmResource, {WASM_I32}, {WASM_I32}))
-    // };
-
-    // error = wasmtime_instance_new(store, module, imports, sizeof(imports), &instance, &trap);
-    // if (error != nullptr)
-    // {
-    //     Utilities::LogWasmError("[WASM] Failed to instantiate module", error, trap);
-    //     delete wasmResource;
-    //     return nullptr;
-    // }
-    // else if (instance == nullptr)
-    // {
-    //     Utilities::LogError("[WASM] Failed to instantiate module [Instance is null]");
-    //     delete wasmResource;
-    //     return nullptr;
-    // }
-    
-    
-    // for (size_t i = 0; i < importtypes.size; i++)
-    // {
-    //     wasm_name_t module;
-    //     wasm_name_new_from_string(&module, "env");
-    //     wasm_name_t name;
-    //     wasm_name_new_from_string(&name, "alt_ICore_Instance");
-
-    //     auto import = importtypes.data[i];
-    //     auto itype = wasm_externtype_copy((wasm_externtype_t*)wasm_importtype_type(import));
-    //     wasm_importtype_delete(import);
-    //     importtypes.data[i] = wasm_importtype_new()
-    // }
-    
 
     Utilities::LogInfo("[WASM] Creating a resource instance for " + name + "...");
 

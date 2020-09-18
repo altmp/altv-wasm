@@ -17,6 +17,7 @@ public:
 
     wasm_engine_t* engine = nullptr;
     wasm_store_t* store = nullptr;
+    wasmtime_linker_t* linker = nullptr;
 
     WasmRuntime();
     bool Init();
