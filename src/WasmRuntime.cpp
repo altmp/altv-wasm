@@ -3,6 +3,7 @@
 #include "WasmResource.hpp"
 #include "WasmExports.hpp"
 #include "Utilities.hpp"
+#include "WasmImport.hpp"
 
 WasmRuntime::WasmRuntime()
 {
@@ -90,16 +91,40 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
 
     auto wasmResource = new WasmResource(resource);
 
-    const wasm_extern_t* imports[] = {
-        wasm_func_as_extern(this->CreateExportFunction("alt_ICore_Instance", WasmExports::ICore_Instance, wasmResource, {}, {})),
-        wasm_func_as_extern(this->CreateExportFunction("alt_ICore_LogInfo", WasmExports::ICore_LogInfo, wasmResource, {}, {})) ,
-        wasm_func_as_extern(this->CreateExportFunction("alt_CEvent_GetType", WasmExports::CEvent_GetType, wasmResource, {}, {}))
+    // TODO: set in WasmRuntime
+    auto linker = wasmtime_linker_new(store);
+
+    auto MakeImport = [&](const std::string& name, wasm_func_callback_with_env_t func, const std::initializer_list<wasm_valkind_enum>& params, const std::initializer_list<wasm_valkind_enum>& results) {
+        return WasmImport(store, "env", name, wasmResource, func, params, results);
     };
+    std::vector<WasmImport> imports = {
+        {MakeImport("alt_ICore_Instance", WasmExports::ICore_Instance, {}, {WASM_I32})},
+        {MakeImport("alt_ICore_LogInfo", WasmExports::ICore_LogInfo, {WASM_I32, WASM_I32}, {})},
+        {MakeImport("alt_CEvent_GetType", WasmExports::CEvent_GetType, {WASM_I32}, {WASM_I32})},
+    };
+
+    // define imports
+    wasmtime_linker_allow_shadowing(linker, true);
+    for (auto& import : imports)
+    {
+        wasm_name_t wmodule;
+        wasm_name_new_from_string(&wmodule, import.module.c_str());
+        wasm_name_t wname;
+        wasm_name_new_from_string(&wname, import.name.c_str());
+        wasmtime_linker_define(linker, &wmodule, &wname, wasm_func_as_extern(import.function));
+        Utilities::LogInfo("WASM Defined "+import.module+"::"+import.name);
+    }
+    
+    // {
+    //     wasm_name_t wname;
+    //     wasm_name_new_from_string(&wname, name.CStr());
+    //     // instantiates module
+    //     wasmtime_linker_module(linker, &wname, module);
+    // }
 
     wasm_instance_t* instance = nullptr;
     wasm_trap_t* trap = nullptr;
-
-    error = wasmtime_instance_new(store, module, imports, sizeof(imports), &instance, &trap);
+    error = wasmtime_linker_instantiate(linker, module, &instance, &trap);
     if (error != nullptr)
     {
         Utilities::LogWasmError("[WASM] Failed to instantiate module", error, trap);
@@ -112,6 +137,58 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource *resource)
         delete wasmResource;
         return nullptr;
     }
+
+    // Give names to imports
+    // wasm_importtype_vec_t importtypes;
+    // wasm_module_imports(module, &importtypes);
+    // assert(importtypes.size == _imports.size());
+    // for (size_t i = 0; i < importtypes.size; i++)
+    // {
+    //     auto& import = _imports[i];
+    //     wasm_name_t module;
+    //     wasm_name_new_from_string(&module, import.env.c_str());
+    //     wasm_name_t name;
+    //     wasm_name_new_from_string(&name, import.name.c_str());
+
+    //     // wasm_functype_as_externtype_const
+
+    //     wasm_
+    // }
+
+    // const wasm_extern_t* imports[] = {
+    //     wasm_func_as_extern(this->CreateImportFunction("alt_ICore_Instance", WasmExports::ICore_Instance, wasmResource, {}, {WASM_I32})),
+    //     wasm_func_as_extern(this->CreateImportFunction("alt_ICore_LogInfo", WasmExports::ICore_LogInfo, wasmResource, {WASM_I32, WASM_I32}, {})),
+    //     wasm_func_as_extern(this->CreateImportFunction("alt_CEvent_GetType", WasmExports::CEvent_GetType, wasmResource, {WASM_I32}, {WASM_I32}))
+    // };
+
+    // error = wasmtime_instance_new(store, module, imports, sizeof(imports), &instance, &trap);
+    // if (error != nullptr)
+    // {
+    //     Utilities::LogWasmError("[WASM] Failed to instantiate module", error, trap);
+    //     delete wasmResource;
+    //     return nullptr;
+    // }
+    // else if (instance == nullptr)
+    // {
+    //     Utilities::LogError("[WASM] Failed to instantiate module [Instance is null]");
+    //     delete wasmResource;
+    //     return nullptr;
+    // }
+    
+    
+    // for (size_t i = 0; i < importtypes.size; i++)
+    // {
+    //     wasm_name_t module;
+    //     wasm_name_new_from_string(&module, "env");
+    //     wasm_name_t name;
+    //     wasm_name_new_from_string(&name, "alt_ICore_Instance");
+
+    //     auto import = importtypes.data[i];
+    //     auto itype = wasm_externtype_copy((wasm_externtype_t*)wasm_importtype_type(import));
+    //     wasm_importtype_delete(import);
+    //     importtypes.data[i] = wasm_importtype_new()
+    // }
+    
 
     Utilities::LogInfo("[WASM] Creating a resource instance for " + name + "...");
 
@@ -176,13 +253,62 @@ void WasmRuntime::OnDispose()
     Utilities::LogError("[WASM] Runtime disposed");
 }
 
-wasm_func_t* WasmRuntime::CreateExportFunction(const std::string& name, wasm_func_callback_with_env_t func, void* env, wasm_valtype_vec_t* params, wasm_valtype_vec_t* results)
+wasm_func_t* WasmRuntime::CreateImportFunction(const std::string& name, wasm_func_callback_with_env_t func, void* env, const std::initializer_list<wasm_valkind_enum>& params, const std::initializer_list<wasm_valkind_enum>& results)
 {
-    wasm_functype_t* type = wasm_functype_new(params, results);
-    wasm_func_t* function = wasm_func_new_with_env(this->store, type, func, env, nullptr);
-    wasm_functype_delete(type);
+    auto MakeValtypes = [](const std::initializer_list<wasm_valkind_enum>& _types){
+        wasm_valtype_vec_t types;
+        wasm_valtype_vec_new_uninitialized(&types, _types.size());
+        for (auto p : _types)
+        {
+            static auto i = 0;
+            switch (p)
+            {
+            case WASM_I32:{
+                types.data[i] = wasm_valtype_new_i32();
+                break;
+            }
+            case WASM_I64:{
+                types.data[i] = wasm_valtype_new_i64();
+                break;
+            }
+            case WASM_F32:{
+                types.data[i] = wasm_valtype_new_f32();
+                break;
+            }
+            case WASM_F64:{
+                types.data[i] = wasm_valtype_new_f64();
+                break;
+            }
+            
+            default:
+            {
+                // error
+                break;
+            }
+            }
 
-    auto exportType = wasm_exporttype_new(Utilities::WasmNameFromString(name), wasm_extern_type(wasm_func_as_extern(function)));
+            i++;
+        }
+        return types;
+    };
+    auto ClearValtypes = [](wasm_valtype_vec_t& types){
+        for (size_t i = 0; i < types.size; i++)
+        {
+            wasm_valtype_delete(types.data[i]);
+        }
+    };
+    
+    auto wparams = MakeValtypes(params);
+    auto wresults = MakeValtypes(results);
+
+    wasm_functype_t* type = wasm_functype_new(&wparams, &wresults);
+    wasm_func_t* function = wasm_func_new_with_env(this->store, type, func, env, nullptr);
+    
+    wasm_functype_delete(type);
+    ClearValtypes(wparams);
+    ClearValtypes(wresults);
+
+    
 
     return function;
 }

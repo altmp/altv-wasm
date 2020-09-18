@@ -7,6 +7,7 @@ get_filename_component(_vs_bin_path "${CMAKE_LINKER}" DIRECTORY)
 set(ALTV_WASM_DEPS ${CMAKE_SOURCE_DIR}/deps)
 set(ALTV_WASM_SOURCES
         src/main.cpp
+        src/WasmImport.cpp
         src/WasmRuntime.cpp
         src/WasmResource.cpp
 )

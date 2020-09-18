@@ -22,6 +22,7 @@ using f64 = float64_t; // f64 | double
 
 namespace Utilities
 {
+    // DONT FORGET TO DELETE
     inline wasm_name_t* WasmNameFromString(const std::string& str)
     {
         wasm_name_t* name = nullptr;
