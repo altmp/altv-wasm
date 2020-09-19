@@ -6,7 +6,6 @@ get_filename_component(_vs_bin_path "${CMAKE_LINKER}" DIRECTORY)
 
 set(ALTV_WASM_DEPS ${CMAKE_SOURCE_DIR}/deps)
 set(ALTV_WASM_SOURCES
-        src/main.cpp
         src/WasmImport.cpp
         src/WasmRuntime.cpp
         src/WasmResource.cpp
@@ -39,6 +38,7 @@ add_definitions(
 # ----------------------------
 add_library(altv-wasm-static STATIC
         ${ALTV_WASM_SOURCES}
+        src/main.cpp
         )
 
 target_link_libraries(altv-wasm-static PUBLIC
@@ -70,6 +70,7 @@ add_custom_command(TARGET altv-wasm-static POST_BUILD
 # ----------------------------
 add_library(altv-wasm-shared SHARED
         ${ALTV_WASM_SOURCES}
+        src/main.cpp
         )
 
 target_link_libraries(altv-wasm-shared PUBLIC
@@ -87,6 +88,34 @@ target_link_libraries(altv-wasm-shared PUBLIC
 
 set_target_properties(altv-wasm-shared PROPERTIES
         OUTPUT_NAME "altv-wasm"
+        CXX_STANDARD 20
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+        )
+
+# ----------------------------
+#           Test Exe
+# ----------------------------
+add_executable(altv-wasm-test
+        ${ALTV_WASM_SOURCES}
+        src/test.cpp
+        )
+
+target_link_libraries(altv-wasm-test PUBLIC
+        # platform libs
+        ws2_32.lib
+        advapi32.lib
+        userenv.lib
+        ntdll.lib
+        shell32.lib
+        ole32.lib
+
+        altv-capi-client-static$<IF:$<CONFIG:Debug>,-mtd,>.lib
+        wasmtime.lib
+        )
+
+set_target_properties(altv-wasm-test PROPERTIES
+        OUTPUT_NAME "altv-wasm-test"
         CXX_STANDARD 20
         RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
         RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
