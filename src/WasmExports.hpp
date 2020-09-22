@@ -38,10 +38,11 @@ namespace WasmExports
         auto wasmResource = static_cast<WasmResource*>(env);
         auto event = static_cast<alt_CEvent*>(wasmResource->GetPointer(args[0].of.i32));
 
+        // TODO: This isn't working, pls fix
         auto eventType = alt_CEvent_GetType(event);
 
         results[0].kind = WASM_I32;
-        results[0].of = { .i32 = eventType };
+        results[0].of.i32 = eventType;
 
         return nullptr;
     }
