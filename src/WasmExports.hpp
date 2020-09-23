@@ -1,6 +1,7 @@
 #pragma once
 
 #include <wasmtime.h>
+#include <sstream>
 #include "Utilities.hpp"
 #include "WasmStructs.hpp"
 
@@ -37,9 +38,16 @@ namespace WasmExports
     {
         auto wasmResource = static_cast<WasmResource*>(env);
         auto event = static_cast<alt::CEvent*>(wasmResource->GetPointer(args[0].of.i32));
+        auto eventType = (i32)event->GetType();
+
+        std::ostringstream output;
+        output << "Event type is: " << eventType;
+
+        // Log here is incorrect.
+        Utilities::LogInfo(output.str());
 
         results[0].kind = WASM_I32;
-        results[0].of.i32 = (i32)event->GetType();
+        results[0].of.i32 = eventType;
 
         return nullptr;
     }

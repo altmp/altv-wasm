@@ -1,4 +1,5 @@
 #include "WasmResource.hpp"
+#include <sstream>
 
 WasmResource::WasmResource(alt::IResource* resource)
     : resource(resource)
@@ -34,6 +35,14 @@ bool WasmResource::Stop()
 
 bool WasmResource::OnEvent(const alt::CEvent* ev)
 {
+    auto eventType = (i32)ev->GetType();
+
+    std::ostringstream output;
+    output << "[1] Event type is: " << eventType;
+
+    // Log here is correct.
+    Utilities::LogInfo(output.str());
+
     this->CallFunction<void>("altEvent", {{ .kind = WASM_I32, .of = { .i32 = this->GetPointerID(&ev) }}});
 
     return true;
