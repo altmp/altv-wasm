@@ -34,7 +34,7 @@ bool WasmResource::Stop()
 
 bool WasmResource::OnEvent(const alt::CEvent* ev)
 {
-    this->CallFunction<void>("altEvent", {{ .kind = WASM_I32, .of = { .i32 = (i32)ev->GetType() }}});
+    this->CallFunction<void>("altEvent", {{ .kind = WASM_I32, .of = { .i32 = this->GetPointerID(&ev) }}});
 
     return true;
 }

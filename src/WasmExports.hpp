@@ -36,13 +36,10 @@ namespace WasmExports
     static wasm_trap_t* CEvent_GetType(void* env, const wasm_val_t args[], wasm_val_t results[])
     {
         auto wasmResource = static_cast<WasmResource*>(env);
-        auto event = static_cast<alt_CEvent*>(wasmResource->GetPointer(args[0].of.i32));
-
-        // TODO: This isn't working, pls fix
-        auto eventType = alt_CEvent_GetType(event);
+        auto event = static_cast<alt::CEvent*>(wasmResource->GetPointer(args[0].of.i32));
 
         results[0].kind = WASM_I32;
-        results[0].of.i32 = eventType;
+        results[0].of.i32 = (i32)event->GetType();
 
         return nullptr;
     }
