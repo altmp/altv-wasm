@@ -95,8 +95,7 @@ public:
         return iterator->second;
     }
 
-    template <typename T>
-    int32_t GetPointerID(T* pointer)
+    int32_t GetPointerID(void* pointer)
     {
         auto iterator = this->pointerTable64_32.find(pointer);
         auto id = 0;

@@ -93,7 +93,7 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource* resource)
 
     std::string moduleNameS = "env";
     wasm_name_t moduleName;
-    wasm_name_new_from_string(&moduleName, moduleNameS.c_str());
+    wasm_name_new(&moduleName, strlen(moduleNameS.c_str()), moduleNameS.c_str());
 
     auto MakeImport = [&](const std::string& name, wasm_func_callback_with_env_t func, const std::initializer_list<wasm_valkind_enum>& params, const std::initializer_list<wasm_valkind_enum>& results) {
         return WasmImport(this->store, moduleNameS, name, wasmResource, func, params, results);
@@ -108,10 +108,10 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource* resource)
     for (auto& import : imports)
     {
         wasm_name_t moduleName;
-        wasm_name_new_from_string(&moduleName, import.module.c_str());
+        wasm_name_new(&moduleName, strlen(import.module.c_str()), import.module.c_str());
 
         wasm_name_t importName;
-        wasm_name_new_from_string(&importName, import.name.c_str());
+        wasm_name_new(&importName, strlen(import.name.c_str()), import.name.c_str());
 
         error = wasmtime_linker_define(this->linker, &moduleName, &importName, wasm_func_as_extern(import.function));
         if (error != nullptr)
@@ -136,8 +136,7 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource* resource)
     }
 
     wasm_instance_t* instance = nullptr;
-    error = wasmtime_linker_module(this->linker, &moduleName, module);
-//    error = wasmtime_linker_instantiate(this->linker, module, &instance, &trap);
+    error = wasmtime_linker_instantiate(this->linker, module, &instance, &trap);
     if (error != nullptr)
     {
         Utilities::LogWasmError("[WASM] Failed to instantiate module", error, nullptr);
@@ -146,7 +145,7 @@ alt::IResource::Impl *WasmRuntime::CreateImpl(alt::IResource* resource)
     }
     else if (instance == nullptr)
     {
-        Utilities::LogError("[WASM] Failed to instantiate module [Instance is null]");
+        Utilities::LogWasmError("[WASM] Failed to instantiate module [instance is null]", error, nullptr);
         delete wasmResource;
         return nullptr;
     }
