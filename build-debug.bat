@@ -1,5 +1,4 @@
 @echo off
-ECHO "NEEDS FIX, BROKEN"
 
 CD .\deps\altv-capi\
 if not exist .\tools\altv-capi-gen.exe call .\tools\get-gen.bat
