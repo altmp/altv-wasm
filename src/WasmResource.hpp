@@ -82,22 +82,10 @@ public:
     wasm_memory_t* FindExportedMemory(const std::string& name);
     wasm_table_t* FindExportedTable(const std::string& name);
 
-    void* GetPointer(int32_t id)
+    template <typename T>
+    int32_t GetPointerID(T* pointer)
     {
-        auto iterator = this->pointerTable32_64.find(id);
-
-        if (iterator == this->pointerTable32_64.end())
-        {
-            Utilities::LogError("[WASM] Pointer with ID [" + std::to_string(id) + "] was not found in the pointer table");
-            return nullptr;
-        }
-
-        return iterator->second;
-    }
-
-    int32_t GetPointerID(void* pointer)
-    {
-        auto iterator = this->pointerTable64_32.find(pointer);
+        auto iterator = this->pointerTable64_32.find((void*)pointer);
         auto id = 0;
 
         if (iterator == this->pointerTable64_32.end())
@@ -108,8 +96,8 @@ public:
                 id++;
             }
 
-            this->pointerTable64_32.emplace(pointer, id);
-            this->pointerTable32_64.emplace(id, pointer);
+            this->pointerTable64_32.emplace((void*)pointer, id);
+            this->pointerTable32_64.emplace(id, (void*)pointer);
         }
         else
         {
@@ -117,5 +105,19 @@ public:
         }
 
         return id;
+    }
+
+    template <typename T>
+    T* GetPointer(int32_t id)
+    {
+        auto iterator = this->pointerTable32_64.find(id);
+
+        if (iterator == this->pointerTable32_64.end())
+        {
+            Utilities::LogError("[WASM] Pointer with ID [" + std::to_string(id) + "] was not found in the pointer table");
+            return nullptr;
+        }
+
+        return (T*)iterator->second;
     }
 };

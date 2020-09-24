@@ -21,7 +21,7 @@ namespace WasmExports
     static wasm_trap_t* ICore_LogInfo(void* env, const wasm_val_t args[], wasm_val_t results[])
     {
         auto wasmResource = static_cast<WasmResource*>(env);
-        auto core = static_cast<alt_ICore*>(wasmResource->GetPointer(args[0].of.i32));
+        auto core = wasmResource->GetPointer<alt_ICore>(args[0].of.i32);
 
         wasm_memory_t* memory = wasmResource->FindExportedMemory("memory");
 
@@ -37,17 +37,17 @@ namespace WasmExports
     static wasm_trap_t* CEvent_GetType(void* env, const wasm_val_t args[], wasm_val_t results[])
     {
         auto wasmResource = static_cast<WasmResource*>(env);
-        auto event = static_cast<alt::CEvent*>(wasmResource->GetPointer(args[0].of.i32));
-        auto eventType = (i32)event->GetType();
+        auto event = wasmResource->GetPointer<alt::CEvent>(args[0].of.i32);
+        auto eventType = event->GetType();
 
         std::ostringstream output;
-        output << "Event type is: " << eventType << " pointer" << event;
+        output << "Event type is: " << (i32)eventType << " pointer" << event;
 
         // Log here is incorrect.
         Utilities::LogInfo(output.str());
 
         results[0].kind = WASM_I32;
-        results[0].of.i32 = eventType;
+        results[0].of.i32 = (i32)eventType;
 
         return nullptr;
     }
