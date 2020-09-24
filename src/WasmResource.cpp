@@ -38,12 +38,12 @@ bool WasmResource::OnEvent(const alt::CEvent* ev)
     auto eventType = (i32)ev->GetType();
 
     std::ostringstream output;
-    output << "[1] Event type is: " << eventType;
+    output << "[1] Event type is: " << eventType << " pointer: " << ev;
 
     // Log here is correct.
     Utilities::LogInfo(output.str());
 
-    this->CallFunction<void>("altEvent", {{ .kind = WASM_I32, .of = { .i32 = this->GetPointerID(&ev) }}});
+    this->CallFunction<void>("altEvent", {{ .kind = WASM_I32, .of = { .i32 = this->GetPointerID(ev) }}});
 
     return true;
 }

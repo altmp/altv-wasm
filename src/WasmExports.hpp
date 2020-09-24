@@ -41,7 +41,7 @@ namespace WasmExports
         auto eventType = (i32)event->GetType();
 
         std::ostringstream output;
-        output << "Event type is: " << eventType;
+        output << "Event type is: " << eventType << " pointer" << event;
 
         // Log here is incorrect.
         Utilities::LogInfo(output.str());
